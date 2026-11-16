@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlashKV | High-Performance In-Memory Store & Vector Engine</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">⚡</div>
+                <div class="logo-text">
+                    <span class="brand">FlashKV</span>
+                    <span class="badge">v1.0.0</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="overview">
+                    <span class="icon">📊</span> Overview
+                </button>
+                <button class="nav-item" data-tab="keys">
+                    <span class="icon">🔑</span> Key Explorer
+                </button>
+                <button class="nav-item" data-tab="vectors">
+                    <span class="icon">🧠</span> Vector Engine
+                </button>
+                <button class="nav-item" data-tab="terminal">
+                    <span class="icon">💻</span> Web Console
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="dot pulse"></span>
+                    <span>Engine: <strong id="server-status">ONLINE</strong></span>
+                </div>
+                <div class="server-endpoint">RESP Port: <code>6379</code></div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="topbar">
+                <div class="page-title" id="page-title">Cluster Overview</div>
+                <div class="topbar-actions">
+                    <button class="btn btn-secondary" id="refresh-btn">
+                        <span class="icon">🔄</span> Refresh
+                    </button>
+                    <a href="https://github.com/YashrajMiyatra/FlashKV" target="_blank" class="btn btn-github">
+                        GitHub
+                    </a>
+                </div>
+            </header>
+
+            <!-- Tab 1: Overview -->
+            <section class="tab-pane active" id="pane-overview">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-title">Operations / Sec</div>
+                        <div class="metric-value highlight-cyan" id="metric-ops">0.0</div>
+                        <div class="metric-sub">Real-time throughput</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Total Keys</div>
+                        <div class="metric-value highlight-emerald" id="metric-keys">0</div>
+                        <div class="metric-sub">Active in-memory keys</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Vector Embeddings</div>
+                        <div class="metric-value highlight-purple" id="metric-vectors">0</div>
+                        <div class="metric-sub" id="metric-vector-indexes">0 indexes</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Commands Processed</div>
+                        <div class="metric-value" id="metric-commands">0</div>
+                        <div class="metric-sub">Lifetime throughput</div>
+                    </div>
+                </div>
+
+                <div class="cards-row">
+                    <div class="card info-card">
+                        <h3>⚡ Engine Performance & Health</h3>
+                        <div class="info-list">
+                            <div class="info-row">
+                                <span>Uptime:</span>
+                                <strong id="info-uptime">0s</strong>
+                            </div>
+                            <div class="info-row">
+                                <span>Connected Clients:</span>
+                                <strong id="info-clients">0</strong>
+                            </div>
+                            <div class="info-row">
+                                <span>Keyspace Hit Rate:</span>
+                                <strong id="info-hitrate">100%</strong>
+                            </div>
+                            <div class="info-row">
+                                <span>AOF Persistence:</span>
+                                <span class="tag tag-success" id="info-aof">ENABLED</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card quick-actions-card">
+                        <h3>🚀 Quick Play Actions</h3>
+                        <p class="card-desc">Seed sample data or test vector search with one click:</p>
+                        <div class="quick-actions-btns">
+                            <button class="btn btn-primary" id="btn-seed-data">Seed Sample Key-Values</button>
+                            <button class="btn btn-purple" id="btn-seed-vectors">Seed AI Vector Embeddings</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 2: Key Explorer -->
+            <section class="tab-pane" id="pane-keys">
+                <div class="toolbar">
+                    <input type="text" id="key-search-input" class="search-input" placeholder="Filter keys by pattern (e.g. user:* or *)...">
+                    <button class="btn btn-primary" id="btn-search-keys">Filter</button>
+                </div>
+                <div class="card">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Key Name</th>
+                                    <th>Type</th>
+                                    <th>TTL</th>
+                                    <th>Value Preview</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="keys-table-body">
+                                <tr>
+                                    <td colspan="5" class="empty-state">No keys found in database. Seed some or run SET in console!</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 3: Vector Engine -->
+            <section class="tab-pane" id="pane-vectors">
+                <div class="card vector-search-box">
+                    <h3>🧠 AI Vector Similarity Search Playground</h3>
+                    <p class="card-desc">Query high-dimensional vectors using Cosine Similarity or Euclidean Distance.</p>
+                    <div class="vector-form">
+                        <div class="form-group">
+                            <label>Index Name:</label>
+                            <input type="text" id="vsearch-index" class="input-field" value="documents" placeholder="Index name">
+                        </div>
+                        <div class="form-group flex-2">
+                            <label>Query Vector (comma-separated floats):</label>
+                            <input type="text" id="vsearch-vector" class="input-field" value="0.25, 0.88, 0.12, 0.54" placeholder="e.g. 0.25, 0.88, 0.12, 0.54">
+                        </div>
+                        <div class="form-group">
+                            <label>Metric:</label>
+                            <select id="vsearch-metric" class="input-field">
+                                <option value="cosine">Cosine Similarity</option>
+                                <option value="euclidean">Euclidean Distance</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Top K:</label>
+                            <input type="number" id="vsearch-topk" class="input-field" value="5" min="1" max="50">
+                        </div>
+                        <button class="btn btn-purple" id="btn-run-vsearch">Run Search</button>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 1.5rem;">
+                    <h3>Search Results</h3>
+                    <div id="vector-results-list" class="vector-results-list">
+                        <div class="empty-state">Execute a vector search above to see ranked nearest neighbors.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 4: Web Console -->
+            <section class="tab-pane" id="pane-terminal">
+                <div class="terminal-card">
+                    <div class="terminal-header">
+                        <div class="terminal-dots">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
+                        <span class="terminal-title">flashkv-cli (Web Interactive Console)</span>
+                    </div>
+                    <div class="terminal-body" id="terminal-output">
+                        <div class="terminal-line system-line">FlashKV Web CLI initialized. Type Redis or Vector commands (e.g. PING, SET k v, GET k, VLIST, INFO).</div>
+                    </div>
+                    <div class="terminal-input-row">
+                        <span class="prompt">flashkv&gt;</span>
+                        <input type="text" id="terminal-input" class="terminal-input" placeholder="Enter command..." autocomplete="off">
+                        <button class="btn btn-primary" id="btn-term-send">Send</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
