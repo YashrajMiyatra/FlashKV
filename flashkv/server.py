@@ -385,6 +385,21 @@ class FlashKVServer:
                     return encode_error("wrong number of arguments for 'sismember' command")
                 return encode_int(self.store.sismember(args[0], args[1]))
 
+            elif cmd == "SINTER":
+                if len(args) < 1:
+                    return encode_error("wrong number of arguments for 'sinter' command")
+                return encode_array(self.store.sinter(*args))
+
+            elif cmd == "SUNION":
+                if len(args) < 1:
+                    return encode_error("wrong number of arguments for 'sunion' command")
+                return encode_array(self.store.sunion(*args))
+
+            elif cmd == "SDIFF":
+                if len(args) < 1:
+                    return encode_error("wrong number of arguments for 'sdiff' command")
+                return encode_array(self.store.sdiff(*args))
+
             # ---------------- Vector Engine ---------------- #
             elif cmd == "VADD":
                 # VADD <index> <id> <dim1,dim2,...> [metadata_json]

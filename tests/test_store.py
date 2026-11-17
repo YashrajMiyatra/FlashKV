@@ -47,6 +47,25 @@ class TestDataStore(unittest.TestCase):
         self.assertEqual(self.store.sismember("tags", "ruby"), 0)
         self.assertEqual(self.store.smembers("tags"), ["python", "redis"])
 
+    def test_set_algebra(self):
+        self.store.sadd("set1", "a", "b", "c")
+        self.store.sadd("set2", "b", "c", "d")
+        self.store.sadd("set3", "c", "d", "e")
+
+        # Intersection
+        self.assertEqual(self.store.sinter("set1", "set2"), ["b", "c"])
+        self.assertEqual(self.store.sinter("set1", "set2", "set3"), ["c"])
+        self.assertEqual(self.store.sinter("set1", "nonexistent"), [])
+
+        # Union
+        self.assertEqual(self.store.sunion("set1", "set2"), ["a", "b", "c", "d"])
+        self.assertEqual(self.store.sunion("set1", "nonexistent"), ["a", "b", "c"])
+
+        # Difference
+        self.assertEqual(self.store.sdiff("set1", "set2"), ["a"])
+        self.assertEqual(self.store.sdiff("set2", "set1"), ["d"])
+        self.assertEqual(self.store.sdiff("set1", "set2", "set3"), ["a"])
+
 
 if __name__ == "__main__":
     unittest.main()

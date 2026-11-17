@@ -350,3 +350,46 @@ class DataStore:
         if entry is None or entry.data_type != "set":
             return 0
         return 1 if member in entry.value else 0
+
+    def sinter(self, *keys: str) -> List[str]:
+        if not keys:
+            return []
+        sets = []
+        for key in keys:
+            entry = self._get_entry(key)
+            if entry is None:
+                return []
+            if entry.data_type != "set":
+                raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+            sets.append(entry.value)
+        res = set.intersection(*sets)
+        return sorted(list(res))
+
+    def sunion(self, *keys: str) -> List[str]:
+        res: set = set()
+        for key in keys:
+            entry = self._get_entry(key)
+            if entry is None:
+                continue
+            if entry.data_type != "set":
+                raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+            res.update(entry.value)
+        return sorted(list(res))
+
+    def sdiff(self, *keys: str) -> List[str]:
+        if not keys:
+            return []
+        first_entry = self._get_entry(keys[0])
+        if first_entry is None:
+            return []
+        if first_entry.data_type != "set":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+        res = set(first_entry.value)
+        for key in keys[1:]:
+            entry = self._get_entry(key)
+            if entry is None:
+                continue
+            if entry.data_type != "set":
+                raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+            res.difference_update(entry.value)
+        return sorted(list(res))
