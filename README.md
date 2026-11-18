@@ -16,6 +16,19 @@
 
 ---
 
+## 🏗️ System Architecture
+
+```mermaid
+flowchart LR
+    Client["Client (redis-cli / redis-py)"] -->|RESP Protocol| Server["FlashKV Server (AsyncIO)"]
+    Server --> Parser["RESP Parser"]
+    Parser --> Dispatcher["Command Dispatcher"]
+    Dispatcher --> Store["In-Memory Key-Value Store"]
+    Dispatcher --> Vector["AI Vector Engine"]
+    Dispatcher --> AOF["Append-Only File (AOF)"]
+    AOF -.->|Compaction / Durability| Disk["flashkv.aof (Disk)"]
+```
+
 ## 🌟 What is FlashKV?
 
 **FlashKV** is an in-memory key-value database built from scratch that speaks the native **RESP (Redis Serialization Protocol)**. You can connect to it using standard tools like `redis-cli`, `redis-py`, or `ioredis`.
