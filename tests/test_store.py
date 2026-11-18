@@ -67,5 +67,15 @@ class TestDataStore(unittest.TestCase):
         self.assertEqual(self.store.sdiff("set1", "set2", "set3"), ["a"])
 
 
+    def test_dbsize_and_flushdb(self):
+        self.assertEqual(self.store.dbsize(), 0)
+        self.store.set("k1", "v1")
+        self.store.set("k2", "v2")
+        self.assertEqual(self.store.dbsize(), 2)
+        self.store.flushdb()
+        self.assertEqual(self.store.dbsize(), 0)
+        self.assertIsNone(self.store.get("k1"))
+
+
 if __name__ == "__main__":
     unittest.main()
