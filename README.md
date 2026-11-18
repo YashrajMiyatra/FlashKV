@@ -156,7 +156,7 @@ FlashKV comes with a built-in dark mode dashboard built with vanilla modern HTML
 | **Keys & TTL** | `EXPIRE`, `PEXPIRE`, `TTL`, `PTTL`, `PERSIST`, `KEYS`, `TYPE` |
 | **Lists** | `LPUSH`, `RPUSH`, `LPOP`, `RPOP`, `LLEN`, `LRANGE` |
 | **Hashes** | `HSET`, `HGET`, `HGETALL`, `HDEL` |
-| **Sets** | `SADD`, `SMEMBERS`, `SREM`, `SCARD`, `SISMEMBER` |
+| **Sets** | `SADD`, `SMEMBERS`, `SREM`, `SCARD`, `SISMEMBER`, `SINTER`, `SUNION`, `SDIFF` |
 | **Vector Engine** | `VADD`, `VSEARCH`, `VDEL`, `VINFO`, `VLIST` |
 | **Persistence** | `BGREWRITEAOF` |
 
