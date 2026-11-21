@@ -1,6 +1,13 @@
 """
 REdis Serialization Protocol (RESP2) parser and serializer.
 Supports streaming/chunked parsing of RESP messages.
+
+Framing Specifications:
+- Simple Strings: start with '+' followed by string and CRLF
+- Errors: start with '-' followed by error message and CRLF
+- Integers: start with ':' followed by signed integer and CRLF
+- Bulk Strings: start with '$' followed by byte length, CRLF, data, CRLF
+- Arrays: start with '*' followed by element count and CRLF
 """
 
 from typing import Any, List, Optional, Tuple, Union
