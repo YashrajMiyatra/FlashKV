@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 
 class StoreEntry:
-    __slots__ = ("value", "data_type", "expires_at")
+    __slots__ = ("value", "data_type", "expires_at", "last_accessed")
 
     def __init__(
         self,
@@ -19,6 +19,7 @@ class StoreEntry:
         self.value = value
         self.data_type = data_type  # 'string', 'list', 'hash', 'set'
         self.expires_at = expires_at
+        self.last_accessed = time.time()
 
     def is_expired(self, now: Optional[float] = None) -> bool:
         if self.expires_at is None:
@@ -29,17 +30,37 @@ class StoreEntry:
 
 
 class DataStore:
-    """Thread-safe and async-compatible in-memory store."""
+    """Thread-safe and async-compatible in-memory store with optional LRU eviction."""
 
-    def __init__(self) -> None:
+    def __init__(self, max_keys: Optional[int] = None) -> None:
         self._data: Dict[str, StoreEntry] = {}
+        self.max_keys = max_keys
         self.stats: Dict[str, int] = {
             "total_commands": 0,
             "keyspace_hits": 0,
             "keyspace_misses": 0,
             "expired_keys": 0,
+            "evicted_keys": 0,
         }
         self.created_at = time.time()
+
+    def _maybe_evict(self, new_key: str) -> None:
+        """Evicts the least recently accessed key if max_keys capacity is reached."""
+        if self.max_keys is None or self.max_keys <= 0:
+            return
+        if new_key in self._data:
+            return
+        if len(self._data) >= self.max_keys:
+            now = time.time()
+            for k in list(self._data.keys()):
+                if self._data[k].is_expired(now):
+                    del self._data[k]
+                    self.stats["expired_keys"] += 1
+
+            if len(self._data) >= self.max_keys:
+                lru_key = min(self._data.keys(), key=lambda k: self._data[k].last_accessed)
+                del self._data[lru_key]
+                self.stats["evicted_keys"] += 1
 
     def _get_entry(self, key: str) -> Optional[StoreEntry]:
         entry = self._data.get(key)
@@ -49,7 +70,16 @@ class DataStore:
             del self._data[key]
             self.stats["expired_keys"] += 1
             return None
+        entry.last_accessed = time.time()
         return entry
+
+    def get_eviction_stats(self) -> Dict[str, Any]:
+        """Returns capacity and LRU eviction metrics."""
+        return {
+            "max_keys": self.max_keys,
+            "current_keys": len(self._data),
+            "evicted_keys": self.stats["evicted_keys"],
+        }
 
     # ------------------ Key & TTL Management ------------------ #
 
@@ -164,6 +194,7 @@ class DataStore:
         elif px is not None:
             expires_at = time.time() + (px / 1000.0)
 
+        self._maybe_evict(key)
         self._data[key] = StoreEntry(str(value), "string", expires_at)
         return True
 
@@ -212,6 +243,7 @@ class DataStore:
     def lpush(self, key: str, *values: str) -> int:
         entry = self._get_entry(key)
         if entry is None:
+            self._maybe_evict(key)
             lst = list(reversed(values))
             self._data[key] = StoreEntry(lst, "list")
             return len(lst)
@@ -224,6 +256,7 @@ class DataStore:
     def rpush(self, key: str, *values: str) -> int:
         entry = self._get_entry(key)
         if entry is None:
+            self._maybe_evict(key)
             lst = list(values)
             self._data[key] = StoreEntry(lst, "list")
             return len(lst)
@@ -272,6 +305,7 @@ class DataStore:
         entry = self._get_entry(key)
         added = 0
         if entry is None:
+            self._maybe_evict(key)
             self._data[key] = StoreEntry(dict(mapping), "hash")
             return len(mapping)
         if entry.data_type != "hash":
@@ -310,6 +344,7 @@ class DataStore:
     def sadd(self, key: str, *members: str) -> int:
         entry = self._get_entry(key)
         if entry is None:
+            self._maybe_evict(key)
             unique_members = set(members)
             self._data[key] = StoreEntry(unique_members, "set")
             return len(unique_members)
