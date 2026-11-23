@@ -300,6 +300,26 @@ class DataStore:
         entry.value = str(val)
         return val
 
+    def decrby(self, key: str, amount: int = 1) -> int:
+        return self.incrby(key, -amount)
+
+    def decr(self, key: str) -> int:
+        return self.decrby(key, 1)
+
+    def incrbyfloat(self, key: str, amount: float) -> float:
+        entry = self._get_entry(key)
+        if entry is None:
+            self.set(key, str(amount))
+            return float(amount)
+        if entry.data_type != "string":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+        try:
+            val = float(entry.value) + float(amount)
+        except ValueError:
+            raise ValueError("value is not a valid float")
+        entry.value = str(val)
+        return val
+
     def mget(self, *keys: str) -> List[Optional[str]]:
         results = []
         for k in keys:
