@@ -103,6 +103,28 @@ class TestDataStore(unittest.TestCase):
             self.assertEqual(set(new_store.smembers("set_key")), {"elemA", "elemB"})
             self.assertGreater(new_store.ttl("expiring_key"), 0)
 
+    def test_scan_cursor_pagination(self):
+        for i in range(25):
+            self.store.set(f"user:{i:02d}", f"val_{i}")
+        self.store.set("order:01", "ord_val")
+
+        # Scan with count 10
+        cursor, batch1 = self.store.scan(0, pattern="user:*", count=10)
+        self.assertEqual(len(batch1), 10)
+        self.assertEqual(cursor, 10)
+
+        cursor, batch2 = self.store.scan(cursor, pattern="user:*", count=10)
+        self.assertEqual(len(batch2), 10)
+        self.assertEqual(cursor, 20)
+
+        cursor, batch3 = self.store.scan(cursor, pattern="user:*", count=10)
+        self.assertEqual(len(batch3), 5)
+        self.assertEqual(cursor, 0)  # Completion
+
+        total_scanned = batch1 + batch2 + batch3
+        self.assertEqual(len(total_scanned), 25)
+        self.assertTrue(all(k.startswith("user:") for k in total_scanned))
+
 
 if __name__ == "__main__":
     unittest.main()
