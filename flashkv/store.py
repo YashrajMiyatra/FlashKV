@@ -161,6 +161,20 @@ class DataStore:
     def flushdb(self) -> None:
         self._data.clear()
 
+    def scan(self, cursor: int = 0, pattern: str = "*", count: int = 10) -> Tuple[int, List[str]]:
+        """
+        Cursor-based incremental iteration over the key space.
+        Returns (next_cursor, matched_keys). A next_cursor of 0 indicates the scan is complete.
+        """
+        all_keys = self.keys(pattern)
+        if cursor >= len(all_keys):
+            return 0, []
+        matched = all_keys[cursor : cursor + count]
+        next_cursor = cursor + count
+        if next_cursor >= len(all_keys):
+            next_cursor = 0
+        return next_cursor, matched
+
     def purge_expired(self, sample_size: int = 100) -> int:
         """Active expiration sweep (Redis-style sampling)."""
         now = time.time()
