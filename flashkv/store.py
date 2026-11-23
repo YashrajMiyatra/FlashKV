@@ -316,6 +316,54 @@ class DataStore:
         for k, v in mapping.items():
             self.set(k, v)
 
+    def strlen(self, key: str) -> int:
+        entry = self._get_entry(key)
+        if entry is None:
+            return 0
+        if entry.data_type != "string":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+        return len(str(entry.value))
+
+    def setrange(self, key: str, offset: int, value: str) -> int:
+        if offset < 0:
+            raise ValueError("offset is out of range, must be non-negative")
+        entry = self._get_entry(key)
+        if entry is None:
+            cur = ""
+        else:
+            if entry.data_type != "string":
+                raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+            cur = str(entry.value)
+
+        if offset > len(cur):
+            cur = cur.ljust(offset, "\x00")
+
+        new_val = cur[:offset] + value + cur[offset + len(value):]
+        self.set(key, new_val)
+        return len(new_val)
+
+    def getrange(self, key: str, start: int, end: int) -> str:
+        entry = self._get_entry(key)
+        if entry is None:
+            return ""
+        if entry.data_type != "string":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+        s = str(entry.value)
+        n = len(s)
+        if n == 0:
+            return ""
+
+        if start < 0:
+            start = max(0, n + start)
+        if end < 0:
+            end = n + end
+
+        if start > end or start >= n:
+            return ""
+
+        end = min(end, n - 1)
+        return s[start : end + 1]
+
     # ------------------ Lists ------------------ #
 
     def lpush(self, key: str, *values: str) -> int:
