@@ -3,6 +3,9 @@ In-memory data store supporting Strings, Lists, Hashes, Sets, and Key Expiration
 """
 
 import fnmatch
+import json
+import os
+import tempfile
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -170,6 +173,67 @@ class DataStore:
                 purged += 1
         self.stats["expired_keys"] += purged
         return purged
+
+    def dump_snapshot(self, filepath: str) -> int:
+        """
+        Atomically dumps all unexpired keys, values, and remaining TTLs to a JSON snapshot.
+        Returns the number of keys saved.
+        """
+        now = time.time()
+        snapshot_data = {}
+        for k, entry in list(self._data.items()):
+            if entry.is_expired(now):
+                continue
+            # Serialize value according to type
+            val = entry.value
+            if entry.data_type == "set":
+                val = list(val)
+            remaining_ttl = None
+            if entry.expires_at is not None:
+                remaining_ttl = max(0.0, entry.expires_at - now)
+
+            snapshot_data[k] = {
+                "type": entry.data_type,
+                "value": val,
+                "ttl": remaining_ttl,
+            }
+
+        dir_name = os.path.dirname(os.path.abspath(filepath))
+        os.makedirs(dir_name, exist_ok=True)
+        with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False) as tf:
+            json.dump(snapshot_data, tf, indent=2)
+            temp_path = tf.name
+
+        os.replace(temp_path, filepath)
+        return len(snapshot_data)
+
+    def load_snapshot(self, filepath: str) -> int:
+        """
+        Loads keys, data types, and remaining TTLs from a snapshot file into memory.
+        Returns the number of keys restored.
+        """
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Snapshot file not found: {filepath}")
+
+        with open(filepath, "r") as f:
+            snapshot_data = json.load(f)
+
+        now = time.time()
+        restored = 0
+        for k, item in snapshot_data.items():
+            dtype = item["type"]
+            val = item["value"]
+            if dtype == "set":
+                val = set(val)
+
+            expires_at = None
+            if item.get("ttl") is not None:
+                expires_at = now + float(item["ttl"])
+
+            self._data[k] = StoreEntry(val, dtype, expires_at)
+            restored += 1
+
+        return restored
 
     # ------------------ Strings ------------------ #
 
