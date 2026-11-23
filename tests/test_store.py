@@ -37,8 +37,14 @@ class TestDataStore(unittest.TestCase):
         self.store.hset("user:1", {"name": "Bob", "role": "admin"})
         self.assertEqual(self.store.hget("user:1", "name"), "Bob")
         self.assertEqual(self.store.hgetall("user:1"), {"name": "Bob", "role": "admin"})
+        self.assertTrue(self.store.hexists("user:1", "name"))
+        self.assertFalse(self.store.hexists("user:1", "age"))
+        self.assertEqual(self.store.hlen("user:1"), 2)
+        self.assertEqual(self.store.hkeys("user:1"), ["name", "role"])
+        self.assertEqual(sorted(self.store.hvals("user:1")), ["Bob", "admin"])
         self.assertEqual(self.store.hdel("user:1", "role"), 1)
         self.assertIsNone(self.store.hget("user:1", "role"))
+        self.assertEqual(self.store.hlen("user:1"), 1)
 
     def test_sets(self):
         self.assertEqual(self.store.sadd("tags", "python", "redis", "python"), 2)

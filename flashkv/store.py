@@ -417,6 +417,34 @@ class DataStore:
                 deleted += 1
         return deleted
 
+    def hexists(self, key: str, field: str) -> bool:
+        """Determines whether a hash field exists."""
+        entry = self._get_entry(key)
+        if entry is None or entry.data_type != "hash":
+            return False
+        return field in entry.value
+
+    def hlen(self, key: str) -> int:
+        """Returns the number of fields contained in the hash."""
+        entry = self._get_entry(key)
+        if entry is None or entry.data_type != "hash":
+            return 0
+        return len(entry.value)
+
+    def hkeys(self, key: str) -> List[str]:
+        """Returns all field names in the hash."""
+        entry = self._get_entry(key)
+        if entry is None or entry.data_type != "hash":
+            return []
+        return sorted(list(entry.value.keys()))
+
+    def hvals(self, key: str) -> List[str]:
+        """Returns all values in the hash."""
+        entry = self._get_entry(key)
+        if entry is None or entry.data_type != "hash":
+            return []
+        return list(entry.value.values())
+
     # ------------------ Sets ------------------ #
 
     def sadd(self, key: str, *members: str) -> int:
