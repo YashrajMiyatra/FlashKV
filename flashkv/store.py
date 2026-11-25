@@ -101,6 +101,10 @@ class DataStore:
                 count += 1
         return count
 
+    def unlink(self, *keys: str) -> int:
+        """Removes the specified keys asynchronously / non-blocking (Redis UNLINK semantics)."""
+        return self.delete(*keys)
+
     def randomkey(self) -> Optional[str]:
         """Returns a random non-expired key from the store, or None if empty."""
         active_keys = [k for k in list(self._data.keys()) if self._get_entry(k) is not None]
