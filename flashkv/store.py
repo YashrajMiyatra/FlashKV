@@ -93,6 +93,14 @@ class DataStore:
                 count += 1
         return count
 
+    def touch(self, *keys: str) -> int:
+        """Alters the last access time of a key(s). A key is ignored if it does not exist."""
+        touched = 0
+        for k in keys:
+            if self._get_entry(k) is not None:
+                touched += 1
+        return touched
+
     def delete(self, *keys: str) -> int:
         count = 0
         for k in keys:
