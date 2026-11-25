@@ -455,6 +455,40 @@ class DataStore:
             stop = length + stop
         return lst[start : stop + 1]
 
+    def lpushx(self, key: str, *values: str) -> int:
+        entry = self._get_entry(key)
+        if entry is None:
+            return 0
+        if entry.data_type != "list":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+        for v in values:
+            entry.value.insert(0, str(v))
+        return len(entry.value)
+
+    def rpushx(self, key: str, *values: str) -> int:
+        entry = self._get_entry(key)
+        if entry is None:
+            return 0
+        if entry.data_type != "list":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+        for v in values:
+            entry.value.append(str(v))
+        return len(entry.value)
+
+    def lindex(self, key: str, index: int) -> Optional[str]:
+        entry = self._get_entry(key)
+        if entry is None:
+            return None
+        if entry.data_type != "list":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+        lst = entry.value
+        length = len(lst)
+        if index < 0:
+            index = length + index
+        if 0 <= index < length:
+            return lst[index]
+        return None
+
     # ------------------ Hashes ------------------ #
 
     def hset(self, key: str, mapping: Dict[str, str]) -> int:
