@@ -557,6 +557,40 @@ class DataStore:
             return []
         return list(entry.value.values())
 
+    def hincrby(self, key: str, field: str, amount: int = 1) -> int:
+        """Increments the integer value of a hash field by the given number."""
+        entry = self._get_entry(key)
+        if entry is None:
+            self._maybe_evict(key)
+            self._data[key] = StoreEntry({field: str(amount)}, "hash")
+            return amount
+        if entry.data_type != "hash":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+        current_str = entry.value.get(field, "0")
+        try:
+            val = int(current_str) + int(amount)
+        except ValueError:
+            raise ValueError("hash value is not an integer")
+        entry.value[field] = str(val)
+        return val
+
+    def hincrbyfloat(self, key: str, field: str, amount: float) -> float:
+        """Increments the float value of a hash field by the given number."""
+        entry = self._get_entry(key)
+        if entry is None:
+            self._maybe_evict(key)
+            self._data[key] = StoreEntry({field: str(amount)}, "hash")
+            return float(amount)
+        if entry.data_type != "hash":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+        current_str = entry.value.get(field, "0")
+        try:
+            val = float(current_str) + float(amount)
+        except ValueError:
+            raise ValueError("hash value is not a valid float")
+        entry.value[field] = str(val)
+        return val
+
     # ------------------ Sets ------------------ #
 
     def sadd(self, key: str, *members: str) -> int:
