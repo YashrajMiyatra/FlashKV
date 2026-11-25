@@ -680,3 +680,27 @@ class DataStore:
                 raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
             res.difference_update(entry.value)
         return sorted(list(res))
+
+    def sinterstore(self, destination: str, *keys: str) -> int:
+        """Computes the intersection of sets and stores the result in destination."""
+        members = self.sinter(*keys)
+        self.delete(destination)
+        if members:
+            self.sadd(destination, *members)
+        return len(members)
+
+    def sunionstore(self, destination: str, *keys: str) -> int:
+        """Computes the union of sets and stores the result in destination."""
+        members = self.sunion(*keys)
+        self.delete(destination)
+        if members:
+            self.sadd(destination, *members)
+        return len(members)
+
+    def sdiffstore(self, destination: str, *keys: str) -> int:
+        """Computes the difference of sets and stores the result in destination."""
+        members = self.sdiff(*keys)
+        self.delete(destination)
+        if members:
+            self.sadd(destination, *members)
+        return len(members)
