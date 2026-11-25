@@ -101,6 +101,14 @@ class DataStore:
                 count += 1
         return count
 
+    def randomkey(self) -> Optional[str]:
+        """Returns a random non-expired key from the store, or None if empty."""
+        active_keys = [k for k in list(self._data.keys()) if self._get_entry(k) is not None]
+        if not active_keys:
+            return None
+        import random
+        return random.choice(active_keys)
+
     def expire(self, key: str, seconds: float) -> bool:
         entry = self._get_entry(key)
         if entry is None:
