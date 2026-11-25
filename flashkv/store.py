@@ -336,6 +336,16 @@ class DataStore:
         for k, v in mapping.items():
             self.set(k, v)
 
+    def msetnx(self, mapping: Dict[str, str]) -> int:
+        if not mapping:
+            return 1
+        for k in mapping.keys():
+            if self._get_entry(k) is not None:
+                return 0
+        for k, v in mapping.items():
+            self.set(k, v)
+        return 1
+
     def strlen(self, key: str) -> int:
         entry = self._get_entry(key)
         if entry is None:
