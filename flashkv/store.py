@@ -113,6 +113,35 @@ class DataStore:
         """Removes the specified keys asynchronously / non-blocking (Redis UNLINK semantics)."""
         return self.delete(*keys)
 
+    def rename(self, key: str, newkey: str) -> bool:
+        """Renames key to newkey. Returns True, or raises KeyError if key does not exist."""
+        if key == newkey:
+            if self._get_entry(key) is None:
+                raise KeyError("no such key")
+            return True
+        entry = self._get_entry(key)
+        if entry is None:
+            raise KeyError("no such key")
+        del self._data[key]
+        self._data[newkey] = entry
+        return True
+
+    def renamenx(self, key: str, newkey: str) -> int:
+        """Renames key to newkey only if newkey does not exist. Returns 1 if renamed, 0 if newkey exists."""
+        if key == newkey:
+            if self._get_entry(key) is None:
+                raise KeyError("no such key")
+            return 0
+        entry = self._get_entry(key)
+        if entry is None:
+            raise KeyError("no such key")
+        dest_entry = self._get_entry(newkey)
+        if dest_entry is not None:
+            return 0
+        del self._data[key]
+        self._data[newkey] = entry
+        return 1
+
     def randomkey(self) -> Optional[str]:
         """Returns a random non-expired key from the store, or None if empty."""
         active_keys = [k for k in list(self._data.keys()) if self._get_entry(k) is not None]
