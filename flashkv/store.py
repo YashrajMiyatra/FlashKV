@@ -443,6 +443,90 @@ class DataStore:
         end = min(end, n - 1)
         return s[start : end + 1]
 
+    def setbit(self, key: str, offset: int, value: int) -> int:
+        """
+        Sets or clears the bit at offset in the string value stored at key.
+        Returns the original bit value stored at offset (0 or 1).
+        """
+        if offset < 0:
+            raise ValueError("bit offset is out of range, must be non-negative")
+        if value not in (0, 1):
+            raise ValueError("bit is not the integer 0 or 1")
+
+        entry = self._get_entry(key)
+        if entry is None:
+            raw = bytearray()
+        else:
+            if entry.data_type != "string":
+                raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+            raw = bytearray(str(entry.value).encode("latin-1"))
+
+        byte_idx = offset // 8
+        bit_idx = 7 - (offset % 8)
+
+        if byte_idx >= len(raw):
+            raw.extend(b"\x00" * (byte_idx + 1 - len(raw)))
+            old_bit = 0
+        else:
+            old_bit = (raw[byte_idx] >> bit_idx) & 1
+
+        if value == 1:
+            raw[byte_idx] |= (1 << bit_idx)
+        else:
+            raw[byte_idx] &= ~(1 << bit_idx)
+
+        self.set(key, raw.decode("latin-1"))
+        return old_bit
+
+    def getbit(self, key: str, offset: int) -> int:
+        """
+        Returns the bit value at offset in the string value stored at key.
+        """
+        if offset < 0:
+            raise ValueError("bit offset is out of range, must be non-negative")
+
+        entry = self._get_entry(key)
+        if entry is None:
+            return 0
+        if entry.data_type != "string":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+
+        raw = str(entry.value).encode("latin-1")
+        byte_idx = offset // 8
+        bit_idx = 7 - (offset % 8)
+
+        if byte_idx >= len(raw):
+            return 0
+        return (raw[byte_idx] >> bit_idx) & 1
+
+    def bitcount(self, key: str, start: Optional[int] = None, end: Optional[int] = None) -> int:
+        """
+        Counts the number of set bits (population count) in a string.
+        Optional byte range [start, end] supports negative indices.
+        """
+        entry = self._get_entry(key)
+        if entry is None:
+            return 0
+        if entry.data_type != "string":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+
+        raw = str(entry.value).encode("latin-1")
+        n = len(raw)
+        if n == 0:
+            return 0
+
+        if start is not None and end is not None:
+            if start < 0:
+                start = max(0, n + start)
+            if end < 0:
+                end = n + end
+            if start > end or start >= n:
+                return 0
+            end = min(end, n - 1)
+            raw = raw[start : end + 1]
+
+        return sum(bin(b).count("1") for b in raw)
+
     # ------------------ Lists ------------------ #
 
     def lpush(self, key: str, *values: str) -> int:
