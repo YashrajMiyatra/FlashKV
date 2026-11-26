@@ -948,3 +948,109 @@ class DataStore:
 
         return True
 
+    # ------------------ Geospatial ------------------ #
+
+    _EARTH_RADIUS_METERS = 6372797.560856
+    _GEO_UNIT_FACTORS = {
+        "m": 1.0,
+        "km": 0.001,
+        "mi": 1.0 / 1609.344,
+        "ft": 1.0 / 0.3048,
+    }
+
+    def geoadd(self, key: str, *args: Any) -> int:
+        """
+        Adds geospatial elements (longitude, latitude, member) to key.
+        Accepts tuples (lon, lat, member) or flat sequence lon, lat, member...
+        Returns the number of new members added.
+        """
+        triples = []
+        if len(args) == 1 and isinstance(args[0], (list, tuple)) and len(args[0]) == 3 and not isinstance(args[0][0], (list, tuple)):
+            triples.append((float(args[0][0]), float(args[0][1]), str(args[0][2])))
+        elif len(args) > 0 and isinstance(args[0], (list, tuple)):
+            for item in args:
+                if len(item) != 3:
+                    raise ValueError("Each geo element must be a (longitude, latitude, member) tuple")
+                triples.append((float(item[0]), float(item[1]), str(item[2])))
+        else:
+            if len(args) % 3 != 0:
+                raise ValueError("Arguments must be groups of (longitude, latitude, member)")
+            for i in range(0, len(args), 3):
+                triples.append((float(args[i]), float(args[i + 1]), str(args[i + 2])))
+
+        for lon, lat, _ in triples:
+            if not (-180.0 <= lon <= 180.0):
+                raise ValueError(f"Longitude {lon} out of bounds [-180, 180]")
+            if not (-85.05112878 <= lat <= 85.05112878):
+                raise ValueError(f"Latitude {lat} out of bounds [-85.05112878, 85.05112878]")
+
+        entry = self._get_entry(key)
+        if entry is None:
+            geo_map = {}
+            new_added = 0
+            for lon, lat, member in triples:
+                if member not in geo_map:
+                    new_added += 1
+                geo_map[member] = (lon, lat)
+            self._maybe_evict(key)
+            self._data[key] = StoreEntry(geo_map, "geo")
+            return new_added
+
+        if entry.data_type != "geo":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+
+        geo_map = entry.value
+        new_added = 0
+        for lon, lat, member in triples:
+            if member not in geo_map:
+                new_added += 1
+            geo_map[member] = (lon, lat)
+
+        return new_added
+
+    def geopos(self, key: str, *members: str) -> List[Optional[Tuple[float, float]]]:
+        """Returns the (longitude, latitude) coordinates of each member in key."""
+        entry = self._get_entry(key)
+        if entry is None:
+            return [None for _ in members]
+        if entry.data_type != "geo":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+
+        geo_map = entry.value
+        return [geo_map.get(m) for m in members]
+
+    def geodist(self, key: str, member1: str, member2: str, unit: str = "m") -> Optional[float]:
+        """
+        Computes the distance between member1 and member2 in specified unit (m, km, mi, ft).
+        Returns None if key or any member does not exist.
+        """
+        unit = unit.lower()
+        if unit not in self._GEO_UNIT_FACTORS:
+            raise ValueError(f"Unsupported distance unit '{unit}', must be m, km, mi, or ft")
+
+        entry = self._get_entry(key)
+        if entry is None:
+            return None
+        if entry.data_type != "geo":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+
+        pos1 = entry.value.get(member1)
+        pos2 = entry.value.get(member2)
+        if pos1 is None or pos2 is None:
+            return None
+
+        lon1, lat1 = pos1
+        lon2, lat2 = pos2
+
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        delta_phi = math.radians(lat2 - lat1)
+        delta_lambda = math.radians(lon2 - lon1)
+
+        a = math.sin(delta_phi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
+        c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+        dist_meters = self._EARTH_RADIUS_METERS * c
+
+        return dist_meters * self._GEO_UNIT_FACTORS[unit]
+
+
