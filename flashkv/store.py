@@ -3,7 +3,9 @@ In-memory data store supporting Strings, Lists, Hashes, Sets, and Key Expiration
 """
 
 import fnmatch
+import hashlib
 import json
+import math
 import os
 import tempfile
 import time
@@ -837,3 +839,112 @@ class DataStore:
         if members:
             self.sadd(destination, *members)
         return len(members)
+
+    # ------------------ HyperLogLog ------------------ #
+
+    _HLL_P = 8
+    _HLL_M = 1 << 8
+    _HLL_ALPHA = 0.7213 / (1.0 + 1.079 / _HLL_M)
+
+    def pfadd(self, key: str, *elements: str) -> int:
+        """
+        Adds elements to HyperLogLog at key.
+        Returns 1 if at least 1 register was altered, 0 otherwise.
+        """
+        entry = self._get_entry(key)
+        if entry is None:
+            registers = [0] * self._HLL_M
+            altered = False
+            for elem in elements:
+                h = int(hashlib.md5(str(elem).encode("utf-8")).hexdigest()[:16], 16)
+                idx = h & (self._HLL_M - 1)
+                w = h >> self._HLL_P
+                leading_zeros = (w ^ (w - 1)).bit_length() if w != 0 else (64 - self._HLL_P)
+                rank = min(leading_zeros, 32)
+                if rank > registers[idx]:
+                    registers[idx] = rank
+                    altered = True
+            self._maybe_evict(key)
+            self._data[key] = StoreEntry(registers, "hll")
+            return 1 if altered else 0
+
+        if entry.data_type != "hll":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+
+        registers = entry.value
+        altered = False
+        for elem in elements:
+            h = int(hashlib.md5(str(elem).encode("utf-8")).hexdigest()[:16], 16)
+            idx = h & (self._HLL_M - 1)
+            w = h >> self._HLL_P
+            leading_zeros = (w ^ (w - 1)).bit_length() if w != 0 else (64 - self._HLL_P)
+            rank = min(leading_zeros, 32)
+            if rank > registers[idx]:
+                registers[idx] = rank
+                altered = True
+
+        return 1 if altered else 0
+
+    def pfcount(self, *keys: str) -> int:
+        """
+        Returns approximated cardinality computed by HyperLogLog(s).
+        If multiple keys, returns merged cardinality.
+        """
+        if not keys:
+            return 0
+
+        merged_registers = [0] * self._HLL_M
+        any_found = False
+
+        for k in keys:
+            entry = self._get_entry(k)
+            if entry is None:
+                continue
+            if entry.data_type != "hll":
+                raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+            any_found = True
+            for i in range(self._HLL_M):
+                if entry.value[i] > merged_registers[i]:
+                    merged_registers[i] = entry.value[i]
+
+        if not any_found:
+            return 0
+
+        z = sum(2.0 ** (-val) for val in merged_registers)
+        raw_est = self._HLL_ALPHA * (self._HLL_M ** 2) / z
+        v = merged_registers.count(0)
+        if v > 0:
+            est = self._HLL_M * math.log(self._HLL_M / v)
+        else:
+            est = raw_est
+        return round(est)
+
+    def pfmerge(self, destkey: str, *sourcekeys: str) -> bool:
+        """
+        Merges multiple HyperLogLogs into destkey.
+        """
+        merged_registers = [0] * self._HLL_M
+        for sk in sourcekeys:
+            entry = self._get_entry(sk)
+            if entry is None:
+                continue
+            if entry.data_type != "hll":
+                raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+            for i in range(self._HLL_M):
+                if entry.value[i] > merged_registers[i]:
+                    merged_registers[i] = entry.value[i]
+
+        dest_entry = self._get_entry(destkey)
+        if dest_entry is not None:
+            if dest_entry.data_type != "hll":
+                raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+            for i in range(self._HLL_M):
+                if dest_entry.value[i] > merged_registers[i]:
+                    merged_registers[i] = dest_entry.value[i]
+            dest_entry.value = merged_registers
+        else:
+            self._maybe_evict(destkey)
+            self._data[destkey] = StoreEntry(merged_registers, "hll")
+
+        return True
+
