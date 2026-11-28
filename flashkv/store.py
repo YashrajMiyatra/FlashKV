@@ -568,6 +568,49 @@ class DataStore:
             return None
         return entry.value.pop()
 
+    def lmove(self, source: str, destination: str, wherefrom: str, whereto: str) -> Optional[str]:
+        """
+        Atomically returns and removes the first/last element (wherefrom: LEFT|RIGHT)
+        of the list stored at source, and pushes the element at the first/last element
+        (whereto: LEFT|RIGHT) of the list stored at destination.
+        """
+        wherefrom = wherefrom.upper()
+        whereto = whereto.upper()
+        if wherefrom not in ("LEFT", "RIGHT") or whereto not in ("LEFT", "RIGHT"):
+            raise ValueError("wherefrom and whereto must be either LEFT or RIGHT")
+
+        src_entry = self._get_entry(source)
+        if src_entry is None or not src_entry.value:
+            return None
+        if src_entry.data_type != "list":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+
+        dst_entry = self._get_entry(destination)
+        if dst_entry is not None and dst_entry.data_type != "list":
+            raise TypeError("WRONGTYPE Operation against a key holding the wrong kind of value")
+
+        # Pop from source
+        if wherefrom == "LEFT":
+            val = src_entry.value.pop(0)
+        else:
+            val = src_entry.value.pop()
+
+        # Push to destination
+        if dst_entry is None:
+            self._maybe_evict(destination)
+            self._data[destination] = StoreEntry([val], "list")
+        else:
+            if whereto == "LEFT":
+                dst_entry.value.insert(0, val)
+            else:
+                dst_entry.value.append(val)
+
+        return val
+
+    def rpoplpush(self, source: str, destination: str) -> Optional[str]:
+        """Atomically returns and removes the last element of source and pushes to head of destination."""
+        return self.lmove(source, destination, "RIGHT", "LEFT")
+
     def llen(self, key: str) -> int:
         entry = self._get_entry(key)
         if entry is None:

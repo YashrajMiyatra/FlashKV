@@ -321,6 +321,25 @@ class FlashKVServer:
                 items = self.store.lrange(args[0], int(args[1]), int(args[2]))
                 return encode_array(items)
 
+            elif cmd == "RPOPLPUSH":
+                if len(args) != 2:
+                    return encode_error("wrong number of arguments for 'rpoplpush' command")
+                item = self.store.rpoplpush(args[0], args[1])
+                if item is not None and self.aof.enabled:
+                    self.aof.append_command(parts)
+                return encode_bulk_string(item)
+
+            elif cmd == "LMOVE":
+                if len(args) != 4:
+                    return encode_error("wrong number of arguments for 'lmove' command")
+                try:
+                    item = self.store.lmove(args[0], args[1], args[2], args[3])
+                except (ValueError, TypeError) as e:
+                    return encode_error(str(e))
+                if item is not None and self.aof.enabled:
+                    self.aof.append_command(parts)
+                return encode_bulk_string(item)
+
             # ---------------- Hashes ---------------- #
             elif cmd == "HSET":
                 if len(args) < 3:
